@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace ConsoleApplication
 {
-    public class Startup
+    public class Program
     {
         private const int _threads = 64;
 
