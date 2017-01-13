@@ -1,4 +1,10 @@
 .vscode
+.vs
+
 bin
 obj
+
 project.lock.json
+
+*.xproj
+*.xproj.user
