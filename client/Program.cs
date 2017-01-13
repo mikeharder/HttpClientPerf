@@ -9,8 +9,6 @@ namespace ConsoleApplication
 {
     public class Program
     {
-        private const int _parallel = 64;
-
         private static readonly HttpClient _httpClient = new HttpClient();
         private const string _payload =
             @"{ ""data"": ""{'job_id':'c4bb6d130003','container_id':'ab7b85dcac72','status':'Success: process exited with code 0.'}"" }";
@@ -76,9 +74,9 @@ namespace ConsoleApplication
         private static void RunTest(Uri uri, HttpMethod method, int parallel, ThreadingMode threadingMode) {
             if (threadingMode == ThreadingMode.Thread)
             {
-                var threads = new Thread[_parallel];
+                var threads = new Thread[parallel];
 
-                for (var i = 0; i < _parallel; i++)
+                for (var i = 0; i < parallel; i++)
                 {
                     var thread = new Thread(() =>
                     {
@@ -92,15 +90,15 @@ namespace ConsoleApplication
                     thread.Start();
                 }
 
-                for (var i = 0; i < _parallel; i++)
+                for (var i = 0; i < parallel; i++)
                 {
                     threads[i].Join();
                 }
             }
             else if (threadingMode == ThreadingMode.Task)
             {
-                var tasks = new Task[_parallel];
-                for (var i=0; i < _parallel; i++)
+                var tasks = new Task[parallel];
+                for (var i=0; i < parallel; i++)
                 {
                     var task = ExecuteRequestsAsync(uri, method);
                     tasks[i] = task;
