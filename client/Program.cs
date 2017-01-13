@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Threading;
@@ -22,7 +22,7 @@ namespace ConsoleApplication
             var url = args[0];
             var method = args[1];
 
-            Console.WriteLine($"Requesting {url} with {_threads} threads...");
+            Console.WriteLine($"{method} {url} with {_threads} threads...");
             
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
             WriteResults();
