@@ -11,6 +11,8 @@ namespace ConsoleApplication
         private const int _threads = 64;
 
         private static readonly HttpClient _httpClient = new HttpClient();
+        private const string _payload =
+            @"{ ""data"": ""{'job_id':'c4bb6d130003','container_id':'ab7b85dcac72','status':'Success: process exited with code 0.'}"" }";
 
         private static Stopwatch _stopwatch = Stopwatch.StartNew();
         private static long _requests;
@@ -18,6 +20,7 @@ namespace ConsoleApplication
         public static void Main(string[] args)
         {
             var url = args[0];
+            var method = args[1];
 
             Console.WriteLine($"Requesting {url} with {_threads} threads...");
             
@@ -25,17 +28,25 @@ namespace ConsoleApplication
             WriteResults();
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 
-            RunTest(args[0]);
+            RunTest(url, method);
         }
 
-        private static void RunTest(string url) {
+        private static void RunTest(string url, string method) {
             var threadObjects = new Thread[_threads];
 
             for (var i=0; i < _threads; i++) {
                 var thread = new Thread(() =>
                 {
                     while (true) {
-                        using (var response = _httpClient.GetAsync(url).Result) { }
+                        if (method == "GET") {
+                            using (var response = _httpClient.GetAsync(url).Result) { }
+                        }
+                        else if (method == "POST") {
+                            using (var response = _httpClient.PostAsync(url, new StringContent(_payload)).Result) { }
+                        }
+                        else {
+                            throw new InvalidOperationException();
+                        }
                         Interlocked.Increment(ref _requests);
                     }
                 });

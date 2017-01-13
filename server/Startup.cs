@@ -19,9 +19,16 @@ namespace ConsoleApplication
 
         public void Configure(IApplicationBuilder app)
         {
+            // app.UseDeveloperExceptionPage();
+
             app.Run(context =>
             {
-                return context.Response.WriteAsync("Hello from ASP.NET Core!");
+                if (context.Request.ContentLength > 0) {
+                    return context.Request.Body.CopyToAsync(context.Response.Body);
+                }
+                else {
+                    return context.Response.WriteAsync("Hello from ASP.NET Core!");
+                }
             });
         }
     }
