@@ -29,7 +29,7 @@ namespace ConsoleApplication
             [Option('p', "parallel", Default = 64)]
             public int Parallel { get; set; }
 
-            [Option('t', "threadingMode", Default = ThreadingMode.Thread)]
+            [Option('t', "threadingMode", Default = ThreadingMode.Task)]
             public ThreadingMode ThreadingMode { get; set; }
         }
 
@@ -41,8 +41,8 @@ namespace ConsoleApplication
 
         private enum ThreadingMode
         {
-            Thread,
-            Task
+            Task,
+            Thread
         }
 
         public static int Main(string[] args)
