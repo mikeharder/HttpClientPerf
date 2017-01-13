@@ -28,12 +28,21 @@ namespace ConsoleApplication
 
             [Option('p', "parallel", Default = 64)]
             public int Parallel { get; set; }
+
+            [Option('t', "threadingMode", Default = ThreadingMode.Thread)]
+            public ThreadingMode ThreadingMode { get; set; }
         }
 
         private enum HttpMethod
         {
             Get,
             Post
+        }
+
+        private enum ThreadingMode
+        {
+            Thread,
+            Task
         }
 
         public static int Main(string[] args)
@@ -52,42 +61,81 @@ namespace ConsoleApplication
 
         private static int Run(Options options)
         {
-            Console.WriteLine($"{options.Method.ToString().ToUpperInvariant()} {options.Uri} with {options.Parallel} clients...");
+            Console.WriteLine($"{options.Method.ToString().ToUpperInvariant()} {options.Uri} " +
+                $"with {options.Parallel} {options.ThreadingMode.ToString().ToLowerInvariant()}s ...");
 
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-            WriteResults();
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+            var writeResultsTask = WriteResults();
 
-            RunTest(options.Uri, options.Method, options.Parallel);
+            RunTest(options.Uri, options.Method, options.Parallel, options.ThreadingMode);
+
+            writeResultsTask.Wait();
 
             return 0;
         }
 
-        private static void RunTest(Uri uri, HttpMethod method, int parallel) {
-            var threadObjects = new Thread[_parallel];
+        private static void RunTest(Uri uri, HttpMethod method, int parallel, ThreadingMode threadingMode) {
+            if (threadingMode == ThreadingMode.Thread)
+            {
+                var threads = new Thread[_parallel];
 
-            for (var i=0; i < _parallel; i++) {
-                var thread = new Thread(() =>
+                for (var i = 0; i < _parallel; i++)
                 {
-                    while (true) {
-                        if (method == HttpMethod.Get) {
-                            using (var response = _httpClient.GetAsync(uri).Result) { }
+                    var thread = new Thread(() =>
+                    {
+                        while (true)
+                        {
+                            using (var response = ExecuteRequestAsync(uri, method).Result) { }
+                            Interlocked.Increment(ref _requests);
                         }
-                        else if (method == HttpMethod.Post) {
-                            using (var response = _httpClient.PostAsync(uri, new StringContent(_payload)).Result) { }
-                        }
-                        else {
-                            throw new InvalidOperationException();
-                        }
-                        Interlocked.Increment(ref _requests);
-                    }
-                });
-                threadObjects[i] = thread;
-                thread.Start();
+                    });
+                    threads[i] = thread;
+                    thread.Start();
+                }
+
+                for (var i = 0; i < _parallel; i++)
+                {
+                    threads[i].Join();
+                }
             }
-            
-            for (var i=0; i < _parallel; i++) {
-                threadObjects[i].Join();
+            else if (threadingMode == ThreadingMode.Task)
+            {
+                var tasks = new Task[_parallel];
+                for (var i=0; i < _parallel; i++)
+                {
+                    var task = ExecuteRequestsAsync(uri, method);
+                    tasks[i] = task;
+                }
+
+                Task.WaitAll(tasks);
+            }
+            else
+            {
+                throw new InvalidOperationException();
+            }
+        }
+
+        private static Task<HttpResponseMessage> ExecuteRequestAsync(Uri uri, HttpMethod method)
+        {
+            if (method == HttpMethod.Get)
+            {
+                return _httpClient.GetAsync(uri);
+            }
+            else if (method == HttpMethod.Post)
+            {
+                return _httpClient.PostAsync(uri, new StringContent(_payload));
+            }
+            else
+            {
+                throw new InvalidOperationException();
+            }
+        }
+
+        private static async Task ExecuteRequestsAsync(Uri uri, HttpMethod method)
+        {
+            while (true)
+            {
+                await ExecuteRequestAsync(uri, method);
+                Interlocked.Increment(ref _requests);
             }
         }
 
