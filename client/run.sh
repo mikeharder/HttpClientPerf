@@ -1,1 +1,1 @@
-docker run -it --rm httpclientperf-client bash
+dotnet run -c Release $@
