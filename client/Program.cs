@@ -38,7 +38,11 @@ namespace ConsoleApplication
 
         public static int Main(string[] args)
         {
-            var parser = new Parser(settings => settings.CaseInsensitiveEnumValues = true);
+            var parser = new Parser(settings =>
+            {
+                settings.CaseInsensitiveEnumValues = true;
+                settings.HelpWriter = Console.Out;
+            });
 
             return parser.ParseArguments<Options>(args).MapResult(
                 options => Run(options),
