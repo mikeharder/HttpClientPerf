@@ -75,13 +75,15 @@ namespace ConsoleApplication
                 var currentElapsed = elapsed - lastElapsed;
                 lastElapsed = elapsed;
 
-                WriteResult(_requests, currentRequests, currentElapsed);
+                WriteResult(_requests, elapsed, currentRequests, currentElapsed);
             }
         }
 
-        private static void WriteResult(long totalRequests, long currentRequests, TimeSpan elapsed)
+        private static void WriteResult(long totalRequests, TimeSpan totalElapsed, long currentRequests, TimeSpan currentElapsed)
         {
-            Console.WriteLine($"{DateTime.UtcNow.ToString("o")}\tRequests\t{totalRequests}\tRPS\t{Math.Round(currentRequests / elapsed.TotalSeconds)}");
+            Console.WriteLine($"{DateTime.UtcNow.ToString("o")}\tTotal Requests\t{totalRequests}" +
+                $"\tCurrent RPS\t{Math.Round(currentRequests / currentElapsed.TotalSeconds)}" +
+                $"\tAverage RPS\t{Math.Round(totalRequests / totalElapsed.TotalSeconds)}");
         }        
     }
 }
