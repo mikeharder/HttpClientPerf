@@ -179,9 +179,9 @@ namespace ConsoleApplication
             Console.WriteLine(
                 $"{DateTime.UtcNow.ToString("o")}\tTot Req\t{totalRequests}" +
                 $"\tCur RPS\t{Math.Round(currentRequests / currentElapsed.TotalSeconds)}" +
-                $"\tCur Lat\t{Math.Round(((double)currentTicks / TimeSpan.TicksPerMillisecond) / currentRequests, 2)}ms" +
+                $"\tCur Lat\t{Math.Round((currentTicks / TimeSpan.TicksPerMillisecond) / (double)currentRequests, 2)}ms" +
                 $"\tAvg RPS\t{Math.Round(totalRequests / totalElapsed.TotalSeconds)}" +
-                $"\tAvg Lat\t{Math.Round(((double)totalTicks / TimeSpan.TicksPerMillisecond) / totalRequests, 2)}ms"
+                $"\tAvg Lat\t{Math.Round((totalTicks / TimeSpan.TicksPerMillisecond) / (double)totalRequests, 2)}ms"
             );
         }        
     }
