@@ -26,7 +26,7 @@ namespace ConsoleApplication
             [Option('m', "method", Default = HttpMethod.Get)]
             public HttpMethod Method { get; set; }
 
-            [Option('p', "parallel", Default = 64)]
+            [Option('p', "parallel", Default = 512)]
             public int Parallel { get; set; }
 
             [Option('t', "threadingMode", Default = ThreadingMode.Task)]
