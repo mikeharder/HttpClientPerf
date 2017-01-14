@@ -14,7 +14,9 @@ namespace ConsoleApplication
             @"{ ""data"": ""{'job_id':'c4bb6d130003','container_id':'ab7b85dcac72','status':'Success: process exited with code 0.'}"" }";
 
         private static Stopwatch _stopwatch = Stopwatch.StartNew();
+
         private static long _requests;
+        private static long _ticks;
 
         private class Options
         {
@@ -82,8 +84,12 @@ namespace ConsoleApplication
                     {
                         while (true)
                         {
+                            var start = _stopwatch.ElapsedTicks;
                             using (var response = ExecuteRequestAsync(uri, method).Result) { }
+                            var end = _stopwatch.ElapsedTicks;
+
                             Interlocked.Increment(ref _requests);
+                            Interlocked.Add(ref _ticks, end - start);
                         }
                     });
                     threads[i] = thread;
@@ -132,36 +138,51 @@ namespace ConsoleApplication
         {
             while (true)
             {
+                var start = _stopwatch.ElapsedTicks;
                 await ExecuteRequestAsync(uri, method);
+                var end = _stopwatch.ElapsedTicks;
+
                 Interlocked.Increment(ref _requests);
+                Interlocked.Add(ref _ticks, end - start);
             }
         }
 
         private static async Task WriteResults()
         {
             var lastRequests = (long)0;
+            var lastTicks = (long)0;
             var lastElapsed = TimeSpan.Zero;
 
             while (true)
             {
                 await Task.Delay(TimeSpan.FromSeconds(1));
 
-                var currentRequests = _requests - lastRequests;
-                lastRequests = _requests;
+                var requests = _requests;
+                var currentRequests = requests - lastRequests;
+                lastRequests = requests;
+
+                var ticks = _ticks;
+                var currentTicks = ticks - lastTicks;
+                lastTicks = ticks;
 
                 var elapsed = _stopwatch.Elapsed;
                 var currentElapsed = elapsed - lastElapsed;
                 lastElapsed = elapsed;
 
-                WriteResult(_requests, elapsed, currentRequests, currentElapsed);
+                WriteResult(requests, ticks, elapsed, currentRequests, currentTicks, currentElapsed);
             }
         }
 
-        private static void WriteResult(long totalRequests, TimeSpan totalElapsed, long currentRequests, TimeSpan currentElapsed)
+        private static void WriteResult(long totalRequests, long totalTicks, TimeSpan totalElapsed,
+            long currentRequests, long currentTicks, TimeSpan currentElapsed)
         {
-            Console.WriteLine($"{DateTime.UtcNow.ToString("o")}\tTotal Requests\t{totalRequests}" +
-                $"\tCurrent RPS\t{Math.Round(currentRequests / currentElapsed.TotalSeconds)}" +
-                $"\tAverage RPS\t{Math.Round(totalRequests / totalElapsed.TotalSeconds)}");
+            Console.WriteLine(
+                $"{DateTime.UtcNow.ToString("o")}\tTot Req\t{totalRequests}" +
+                $"\tCur RPS\t{Math.Round(currentRequests / currentElapsed.TotalSeconds)}" +
+                $"\tCur Lat\t{Math.Round(((double)currentTicks / TimeSpan.TicksPerMillisecond) / currentRequests, 2)}ms" +
+                $"\tAvg RPS\t{Math.Round(totalRequests / totalElapsed.TotalSeconds)}" +
+                $"\tAvg Lat\t{Math.Round(((double)totalTicks / TimeSpan.TicksPerMillisecond) / totalRequests, 2)}ms"
+            );
         }        
     }
 }
