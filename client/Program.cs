@@ -176,8 +176,8 @@ namespace ConsoleApplication
         private static void WriteResult(long totalRequests, long totalTicks, TimeSpan totalElapsed,
             long currentRequests, long currentTicks, TimeSpan currentElapsed)
         {
-            var totalMs = (double)totalTicks / TimeSpan.TicksPerMillisecond;
-            var currentMs = (double)currentTicks / TimeSpan.TicksPerMillisecond;
+            var totalMs = ((double)totalTicks / Stopwatch.Frequency) * 1000;
+            var currentMs = ((double)currentTicks / Stopwatch.Frequency) * 1000;
 
             Console.WriteLine(
                 $"{DateTime.UtcNow.ToString("o")}\tTot Req\t{totalRequests}" +
