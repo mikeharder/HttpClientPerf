@@ -35,6 +35,9 @@ namespace ConsoleApplication
 
             [Option('c', "clients", Default = 1)]
             public int Clients { get; set; }
+
+            [Option('e', "expectContinue")]
+            public bool? ExpectContinue { get; set; }
         }
 
         private enum HttpMethod
@@ -65,19 +68,23 @@ namespace ConsoleApplication
 
         private static int Run(Options options)
         {
-            Console.WriteLine($"{options.Method.ToString().ToUpperInvariant()} {options.Uri} " +
-                $"with {options.Parallel} {options.ThreadingMode.ToString().ToLowerInvariant()}(s) and {options.Clients} client(s)...");
+            Console.WriteLine(
+                $"{options.Method.ToString().ToUpperInvariant()} {options.Uri} with " +
+                $"{options.Parallel} {options.ThreadingMode.ToString().ToLowerInvariant()}(s), " +
+                $"{options.Clients} client(s), " +
+                $"and ExpectContinue={options.ExpectContinue?.ToString() ?? "null"}" +
+                "...");
 
             var writeResultsTask = WriteResults();
 
-            RunTest(options.Uri, options.Method, options.Parallel, options.ThreadingMode, options.Clients);
+            RunTest(options.Uri, options.Method, options.Parallel, options.ThreadingMode, options.Clients, options.ExpectContinue);
 
             writeResultsTask.Wait();
 
             return 0;
         }
 
-        private static void RunTest(Uri uri, HttpMethod method, int parallel, ThreadingMode threadingMode, int clients) {
+        private static void RunTest(Uri uri, HttpMethod method, int parallel, ThreadingMode threadingMode, int clients, bool? expectContinue) {
             _httpClients = new HttpClient[clients];
             for (int i=0; i < clients; i++)
             {
@@ -97,7 +104,7 @@ namespace ConsoleApplication
                         while (true)
                         {
                             var start = _stopwatch.ElapsedTicks;
-                            using (var response = ExecuteRequestAsync(httpClient, uri, method).Result) { }
+                            using (var response = ExecuteRequestAsync(httpClient, uri, method, expectContinue).Result) { }
                             var end = _stopwatch.ElapsedTicks;
 
                             Interlocked.Increment(ref _requests);
@@ -119,7 +126,7 @@ namespace ConsoleApplication
                 for (var i=0; i < parallel; i++)
                 {
                     var httpClient = _httpClients[i % clients];
-                    var task = ExecuteRequestsAsync(httpClient, uri, method);
+                    var task = ExecuteRequestsAsync(httpClient, uri, method, expectContinue);
                     tasks[i] = task;
                 }
 
@@ -131,7 +138,7 @@ namespace ConsoleApplication
             }
         }
 
-        private static Task<HttpResponseMessage> ExecuteRequestAsync(HttpClient httpClient, Uri uri, HttpMethod method)
+        private static Task<HttpResponseMessage> ExecuteRequestAsync(HttpClient httpClient, Uri uri, HttpMethod method, bool? expectContinue)
         {
             if (method == HttpMethod.Get)
             {
@@ -139,7 +146,10 @@ namespace ConsoleApplication
             }
             else if (method == HttpMethod.Post)
             {
-                return httpClient.PostAsync(uri, new StringContent(_payload));
+                var m = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, uri);
+                m.Content = new StringContent(_payload);
+                m.Headers.ExpectContinue = expectContinue;
+                return httpClient.SendAsync(m);
             }
             else
             {
@@ -147,12 +157,12 @@ namespace ConsoleApplication
             }
         }
 
-        private static async Task ExecuteRequestsAsync(HttpClient httpClient, Uri uri, HttpMethod method)
+        private static async Task ExecuteRequestsAsync(HttpClient httpClient, Uri uri, HttpMethod method, bool? expectContinue)
         {
             while (true)
             {
                 var start = _stopwatch.ElapsedTicks;
-                await ExecuteRequestAsync(httpClient, uri, method);
+                await ExecuteRequestAsync(httpClient, uri, method, expectContinue);
                 var end = _stopwatch.ElapsedTicks;
 
                 Interlocked.Increment(ref _requests);
