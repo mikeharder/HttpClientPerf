@@ -9,7 +9,8 @@ namespace ConsoleApplication
 {
     public class Program
     {
-        private static readonly HttpClient _httpClient = new HttpClient();
+        private static HttpClient[] _httpClients;
+
         private const string _payload =
             @"{ ""data"": ""{'job_id':'c4bb6d130003','container_id':'ab7b85dcac72','status':'Success: process exited with code 0.'}"" }";
 
@@ -31,6 +32,9 @@ namespace ConsoleApplication
 
             [Option('t', "threadingMode", Default = ThreadingMode.Task)]
             public ThreadingMode ThreadingMode { get; set; }
+
+            [Option('c', "clients", Default = 1)]
+            public int Clients { get; set; }
         }
 
         private enum HttpMethod
@@ -62,30 +66,38 @@ namespace ConsoleApplication
         private static int Run(Options options)
         {
             Console.WriteLine($"{options.Method.ToString().ToUpperInvariant()} {options.Uri} " +
-                $"with {options.Parallel} {options.ThreadingMode.ToString().ToLowerInvariant()}s ...");
+                $"with {options.Parallel} {options.ThreadingMode.ToString().ToLowerInvariant()}(s) and {options.Clients} client(s)...");
 
             var writeResultsTask = WriteResults();
 
-            RunTest(options.Uri, options.Method, options.Parallel, options.ThreadingMode);
+            RunTest(options.Uri, options.Method, options.Parallel, options.ThreadingMode, options.Clients);
 
             writeResultsTask.Wait();
 
             return 0;
         }
 
-        private static void RunTest(Uri uri, HttpMethod method, int parallel, ThreadingMode threadingMode) {
+        private static void RunTest(Uri uri, HttpMethod method, int parallel, ThreadingMode threadingMode, int clients) {
+            _httpClients = new HttpClient[clients];
+            for (int i=0; i < clients; i++)
+            {
+                _httpClients[i] = new HttpClient();
+            }
+
             if (threadingMode == ThreadingMode.Thread)
             {
                 var threads = new Thread[parallel];
 
                 for (var i = 0; i < parallel; i++)
                 {
+                    var httpClient = _httpClients[i % clients];
+
                     var thread = new Thread(() =>
                     {
                         while (true)
                         {
                             var start = _stopwatch.ElapsedTicks;
-                            using (var response = ExecuteRequestAsync(uri, method).Result) { }
+                            using (var response = ExecuteRequestAsync(httpClient, uri, method).Result) { }
                             var end = _stopwatch.ElapsedTicks;
 
                             Interlocked.Increment(ref _requests);
@@ -106,7 +118,8 @@ namespace ConsoleApplication
                 var tasks = new Task[parallel];
                 for (var i=0; i < parallel; i++)
                 {
-                    var task = ExecuteRequestsAsync(uri, method);
+                    var httpClient = _httpClients[i % clients];
+                    var task = ExecuteRequestsAsync(httpClient, uri, method);
                     tasks[i] = task;
                 }
 
@@ -118,15 +131,15 @@ namespace ConsoleApplication
             }
         }
 
-        private static Task<HttpResponseMessage> ExecuteRequestAsync(Uri uri, HttpMethod method)
+        private static Task<HttpResponseMessage> ExecuteRequestAsync(HttpClient httpClient, Uri uri, HttpMethod method)
         {
             if (method == HttpMethod.Get)
             {
-                return _httpClient.GetAsync(uri);
+                return httpClient.GetAsync(uri);
             }
             else if (method == HttpMethod.Post)
             {
-                return _httpClient.PostAsync(uri, new StringContent(_payload));
+                return httpClient.PostAsync(uri, new StringContent(_payload));
             }
             else
             {
@@ -134,12 +147,12 @@ namespace ConsoleApplication
             }
         }
 
-        private static async Task ExecuteRequestsAsync(Uri uri, HttpMethod method)
+        private static async Task ExecuteRequestsAsync(HttpClient httpClient, Uri uri, HttpMethod method)
         {
             while (true)
             {
                 var start = _stopwatch.ElapsedTicks;
-                await ExecuteRequestAsync(uri, method);
+                await ExecuteRequestAsync(httpClient, uri, method);
                 var end = _stopwatch.ElapsedTicks;
 
                 Interlocked.Increment(ref _requests);
