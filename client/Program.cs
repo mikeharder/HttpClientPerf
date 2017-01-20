@@ -39,8 +39,8 @@ namespace ConsoleApplication
             [Option('e', "expectContinue")]
             public bool? ExpectContinue { get; set; }
 
-            [Option('r', "requests", Default = int.MaxValue)]
-            public int Requests { get; set; }
+            [Option('r', "requests", Default = long.MaxValue)]
+            public long Requests { get; set; }
         }
 
         private enum HttpMethod
@@ -88,7 +88,7 @@ namespace ConsoleApplication
         }
 
         private static void RunTest(Uri uri, HttpMethod method, int parallel, ThreadingMode threadingMode, int clients, bool? expectContinue,
-            int maxRequests)
+            long maxRequests)
         {
             _httpClients = new HttpClient[clients];
             for (int i=0; i < clients; i++)
@@ -162,7 +162,7 @@ namespace ConsoleApplication
             }
         }
 
-        private static async Task ExecuteRequestsAsync(HttpClient httpClient, Uri uri, HttpMethod method, bool? expectContinue, int maxRequests)
+        private static async Task ExecuteRequestsAsync(HttpClient httpClient, Uri uri, HttpMethod method, bool? expectContinue, long maxRequests)
         {
             while (Interlocked.Increment(ref _requests) <= maxRequests)
             {
@@ -175,7 +175,7 @@ namespace ConsoleApplication
             Interlocked.Decrement(ref _requests);
         }
 
-        private static async Task WriteResults(int maxRequests)
+        private static async Task WriteResults(long maxRequests)
         {
             var lastRequests = (long)0;
             var lastTicks = (long)0;
@@ -198,7 +198,7 @@ namespace ConsoleApplication
                 lastElapsed = elapsed;
 
                 WriteResult(requests, ticks, elapsed, currentRequests, currentTicks, currentElapsed);
-            } while (_requests < maxRequests);
+            } while (Interlocked.Read(ref _requests) < maxRequests);
         }
 
         private static void WriteResult(long totalRequests, long totalTicks, TimeSpan totalElapsed,
