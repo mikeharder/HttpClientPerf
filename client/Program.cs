@@ -38,6 +38,9 @@ namespace ConsoleApplication
 
             [Option('e', "expectContinue")]
             public bool? ExpectContinue { get; set; }
+
+            [Option('r', "requests", Default = int.MaxValue)]
+            public int Requests { get; set; }
         }
 
         private enum HttpMethod
@@ -75,16 +78,18 @@ namespace ConsoleApplication
                 $"and ExpectContinue={options.ExpectContinue?.ToString() ?? "null"}" +
                 "...");
 
-            var writeResultsTask = WriteResults();
+            var writeResultsTask = WriteResults(options.Requests);
 
-            RunTest(options.Uri, options.Method, options.Parallel, options.ThreadingMode, options.Clients, options.ExpectContinue);
+            RunTest(options.Uri, options.Method, options.Parallel, options.ThreadingMode, options.Clients, options.ExpectContinue, options.Requests);
 
             writeResultsTask.Wait();
 
             return 0;
         }
 
-        private static void RunTest(Uri uri, HttpMethod method, int parallel, ThreadingMode threadingMode, int clients, bool? expectContinue) {
+        private static void RunTest(Uri uri, HttpMethod method, int parallel, ThreadingMode threadingMode, int clients, bool? expectContinue,
+            int maxRequests)
+        {
             _httpClients = new HttpClient[clients];
             for (int i=0; i < clients; i++)
             {
@@ -101,15 +106,15 @@ namespace ConsoleApplication
 
                     var thread = new Thread(() =>
                     {
-                        while (true)
+                        while (Interlocked.Increment(ref _requests) <= maxRequests)
                         {
                             var start = _stopwatch.ElapsedTicks;
                             using (var response = ExecuteRequestAsync(httpClient, uri, method, expectContinue).Result) { }
                             var end = _stopwatch.ElapsedTicks;
 
-                            Interlocked.Increment(ref _requests);
                             Interlocked.Add(ref _ticks, end - start);
                         }
+                        Interlocked.Decrement(ref _requests);
                     });
                     threads[i] = thread;
                     thread.Start();
@@ -126,7 +131,7 @@ namespace ConsoleApplication
                 for (var i=0; i < parallel; i++)
                 {
                     var httpClient = _httpClients[i % clients];
-                    var task = ExecuteRequestsAsync(httpClient, uri, method, expectContinue);
+                    var task = ExecuteRequestsAsync(httpClient, uri, method, expectContinue, maxRequests);
                     tasks[i] = task;
                 }
 
@@ -157,26 +162,26 @@ namespace ConsoleApplication
             }
         }
 
-        private static async Task ExecuteRequestsAsync(HttpClient httpClient, Uri uri, HttpMethod method, bool? expectContinue)
+        private static async Task ExecuteRequestsAsync(HttpClient httpClient, Uri uri, HttpMethod method, bool? expectContinue, int maxRequests)
         {
-            while (true)
+            while (Interlocked.Increment(ref _requests) <= maxRequests)
             {
                 var start = _stopwatch.ElapsedTicks;
                 await ExecuteRequestAsync(httpClient, uri, method, expectContinue);
                 var end = _stopwatch.ElapsedTicks;
 
-                Interlocked.Increment(ref _requests);
                 Interlocked.Add(ref _ticks, end - start);
             }
+            Interlocked.Decrement(ref _requests);
         }
 
-        private static async Task WriteResults()
+        private static async Task WriteResults(int maxRequests)
         {
             var lastRequests = (long)0;
             var lastTicks = (long)0;
             var lastElapsed = TimeSpan.Zero;
 
-            while (true)
+            do
             {
                 await Task.Delay(TimeSpan.FromSeconds(1));
 
@@ -193,7 +198,7 @@ namespace ConsoleApplication
                 lastElapsed = elapsed;
 
                 WriteResult(requests, ticks, elapsed, currentRequests, currentTicks, currentElapsed);
-            }
+            } while (_requests < maxRequests);
         }
 
         private static void WriteResult(long totalRequests, long totalTicks, TimeSpan totalElapsed,
