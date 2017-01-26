@@ -213,7 +213,9 @@ namespace ConsoleApplication
             while (Interlocked.Increment(ref _requests) <= maxRequests)
             {
                 var start = _stopwatch.ElapsedTicks;
-                await ExecuteRequestAsync(httpClient, uri, method, expectContinue, clientSelectionMode);
+                using (var response = await ExecuteRequestAsync(httpClient, uri, method, expectContinue, clientSelectionMode))
+                {
+                }
                 var end = _stopwatch.ElapsedTicks;
 
                 Interlocked.Add(ref _ticks, end - start);
