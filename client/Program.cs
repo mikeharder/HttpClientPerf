@@ -178,7 +178,7 @@ namespace ConsoleApplication
             return _httpClients[Interlocked.Increment(ref _httpClientCounter) % _httpClients.Length];
         }
 
-        private static Task<HttpResponseMessage> ExecuteRequestAsync(HttpClient httpClient, Uri uri, HttpMethod method, bool? expectContinue,
+        private static async Task<HttpResponseMessage> ExecuteRequestAsync(HttpClient httpClient, Uri uri, HttpMethod method, bool? expectContinue,
             ClientSelectionMode clientSelectionMode)
         {
             if (clientSelectionMode == ClientSelectionMode.RequestRoundRobin)
@@ -192,14 +192,17 @@ namespace ConsoleApplication
 
             if (method == HttpMethod.Get)
             {
-                return httpClient.GetAsync(uri);
+                return await httpClient.GetAsync(uri);
             }
             else if (method == HttpMethod.Post)
             {
-                var m = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, uri);
-                m.Content = new StringContent(_payload);
-                m.Headers.ExpectContinue = expectContinue;
-                return httpClient.SendAsync(m);
+                using (var m = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, uri))
+                using (var content = new StringContent(_payload))
+                {
+                    m.Content = content;
+                    m.Headers.ExpectContinue = expectContinue;
+                    return await httpClient.SendAsync(m);
+                }
             }
             else
             {
