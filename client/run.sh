@@ -1,1 +1,1 @@
-~/.dotnet/dotnet run -c Release $@
+~/.dotnet/dotnet bin/Release/netcoreapp1.1/client.dll $@
