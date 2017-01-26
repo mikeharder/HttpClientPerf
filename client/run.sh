@@ -1,1 +1,1 @@
-dotnet run -c Release $@
+~/.dotnet/dotnet run -c Release $@
