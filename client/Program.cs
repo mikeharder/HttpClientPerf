@@ -43,7 +43,7 @@ namespace ConsoleApplication
             [Option('r', "requests", Default = long.MaxValue)]
             public long Requests { get; set; }
 
-            [Option('s', "clientSelectionMode", Default = ClientSelectionMode.Task)]
+            [Option('s', "clientSelectionMode", Default = ClientSelectionMode.TaskRoundRobin)]
             public ClientSelectionMode ClientSelectionMode { get; set; }
         }
 
@@ -61,8 +61,10 @@ namespace ConsoleApplication
 
         private enum ClientSelectionMode
         {
-            Task,
-            Request
+            TaskRoundRobin,
+            TaskRandom,
+            RequestRoundRobin,
+            RequestRandom
         }
 
         public static int Main(string[] args)
@@ -115,9 +117,13 @@ namespace ConsoleApplication
                 for (var i = 0; i < parallel; i++)
                 {
                     HttpClient httpClient = null;
-                    if (clientSelectionMode == ClientSelectionMode.Task)
+                    if (clientSelectionMode == ClientSelectionMode.TaskRoundRobin)
                     {
-                        httpClient =  _httpClients[i % clients];
+                        httpClient = _httpClients[i % _httpClients.Length];
+                    }
+                    else if (clientSelectionMode == ClientSelectionMode.TaskRandom)
+                    {
+                        httpClient = _httpClients[ConcurrentRandom.Next() % _httpClients.Length];
                     }
 
                     var thread = new Thread(() =>
@@ -125,7 +131,7 @@ namespace ConsoleApplication
                         while (Interlocked.Increment(ref _requests) <= maxRequests)
                         {
                             var start = _stopwatch.ElapsedTicks;
-                            using (var response = ExecuteRequestAsync(httpClient, uri, method, expectContinue).Result) { }
+                            using (var response = ExecuteRequestAsync(httpClient, uri, method, expectContinue, clientSelectionMode).Result) { }
                             var end = _stopwatch.ElapsedTicks;
 
                             Interlocked.Add(ref _ticks, end - start);
@@ -147,11 +153,15 @@ namespace ConsoleApplication
                 for (var i = 0; i < parallel; i++)
                 {
                     HttpClient httpClient = null;
-                    if (clientSelectionMode == ClientSelectionMode.Task)
+                    if (clientSelectionMode == ClientSelectionMode.TaskRoundRobin)
                     {
-                        httpClient = _httpClients[i % clients];
+                        httpClient = _httpClients[i % _httpClients.Length];
                     }
-                    var task = ExecuteRequestsAsync(httpClient, uri, method, expectContinue, maxRequests);
+                    else if (clientSelectionMode == ClientSelectionMode.TaskRandom)
+                    {
+                        httpClient = _httpClients[ConcurrentRandom.Next() % _httpClients.Length];
+                    }
+                    var task = ExecuteRequestsAsync(httpClient, uri, method, expectContinue, maxRequests, clientSelectionMode);
                     tasks[i] = task;
                 }
 
@@ -168,11 +178,16 @@ namespace ConsoleApplication
             return _httpClients[Interlocked.Increment(ref _httpClientCounter) % _httpClients.Length];
         }
 
-        private static Task<HttpResponseMessage> ExecuteRequestAsync(HttpClient httpClient, Uri uri, HttpMethod method, bool? expectContinue)
+        private static Task<HttpResponseMessage> ExecuteRequestAsync(HttpClient httpClient, Uri uri, HttpMethod method, bool? expectContinue,
+            ClientSelectionMode clientSelectionMode)
         {
-            if (httpClient == null)
+            if (clientSelectionMode == ClientSelectionMode.RequestRoundRobin)
             {
                 httpClient = NextHttpClient();
+            }
+            else if (clientSelectionMode == ClientSelectionMode.RequestRandom)
+            {
+                httpClient = _httpClients[ConcurrentRandom.Next() % _httpClients.Length];
             }
 
             if (method == HttpMethod.Get)
@@ -192,12 +207,13 @@ namespace ConsoleApplication
             }
         }
 
-        private static async Task ExecuteRequestsAsync(HttpClient httpClient, Uri uri, HttpMethod method, bool? expectContinue, long maxRequests)
+        private static async Task ExecuteRequestsAsync(HttpClient httpClient, Uri uri, HttpMethod method, bool? expectContinue, long maxRequests,
+            ClientSelectionMode clientSelectionMode)
         {
             while (Interlocked.Increment(ref _requests) <= maxRequests)
             {
                 var start = _stopwatch.ElapsedTicks;
-                await ExecuteRequestAsync(httpClient, uri, method, expectContinue);
+                await ExecuteRequestAsync(httpClient, uri, method, expectContinue, clientSelectionMode);
                 var end = _stopwatch.ElapsedTicks;
 
                 Interlocked.Add(ref _ticks, end - start);
@@ -244,6 +260,26 @@ namespace ConsoleApplication
                 $"\tAvg RPS\t{Math.Round(totalRequests / totalElapsed.TotalSeconds)}" +
                 $"\tAvg Lat\t{Math.Round(totalMs / totalRequests, 2)}ms"
             );
+        }
+
+        public static class ConcurrentRandom
+        {
+            private static Random _global = new Random();
+
+            [ThreadStatic]
+            private static Random _local;
+
+            public static int Next()
+            {
+                Random inst = _local;
+                if (inst == null)
+                {
+                    int seed;
+                    lock (_global) seed = _global.Next();
+                    _local = inst = new Random(seed);
+                }
+                return inst.Next();
+            }
         }
     }
 }
