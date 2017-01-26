@@ -85,6 +85,7 @@ namespace ConsoleApplication
                 $"{options.Method.ToString().ToUpperInvariant()} {options.Uri} with " +
                 $"{options.Parallel} {options.ThreadingMode.ToString().ToLowerInvariant()}(s), " +
                 $"{options.Clients} client(s), " +
+                $"ClientSelectionMode={options.ClientSelectionMode.ToString()}, "
                 $"and ExpectContinue={options.ExpectContinue?.ToString() ?? "null"}" +
                 "...");
 
