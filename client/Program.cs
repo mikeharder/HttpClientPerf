@@ -10,6 +10,7 @@ namespace ConsoleApplication
     public class Program
     {
         private static HttpClient[] _httpClients;
+        private static long _httpClientCounter = 0;
 
         private const string _payload =
             @"{ ""data"": ""{'job_id':'c4bb6d130003','container_id':'ab7b85dcac72','status':'Success: process exited with code 0.'}"" }";
@@ -41,6 +42,9 @@ namespace ConsoleApplication
 
             [Option('r', "requests", Default = long.MaxValue)]
             public long Requests { get; set; }
+
+            [Option('s', "clientSelectionMode", Default = ClientSelectionMode.Task)]
+            public ClientSelectionMode ClientSelectionMode { get; set; }
         }
 
         private enum HttpMethod
@@ -53,6 +57,12 @@ namespace ConsoleApplication
         {
             Task,
             Thread
+        }
+
+        private enum ClientSelectionMode
+        {
+            Task,
+            Request
         }
 
         public static int Main(string[] args)
@@ -80,18 +90,19 @@ namespace ConsoleApplication
 
             var writeResultsTask = WriteResults(options.Requests);
 
-            RunTest(options.Uri, options.Method, options.Parallel, options.ThreadingMode, options.Clients, options.ExpectContinue, options.Requests);
+            RunTest(options.Uri, options.Method, options.Parallel, options.ThreadingMode, options.Clients, options.ClientSelectionMode,
+                options.ExpectContinue, options.Requests);
 
             writeResultsTask.Wait();
 
             return 0;
         }
 
-        private static void RunTest(Uri uri, HttpMethod method, int parallel, ThreadingMode threadingMode, int clients, bool? expectContinue,
-            long maxRequests)
+        private static void RunTest(Uri uri, HttpMethod method, int parallel, ThreadingMode threadingMode, int clients,
+            ClientSelectionMode clientSelectionMode, bool? expectContinue, long maxRequests)
         {
             _httpClients = new HttpClient[clients];
-            for (int i=0; i < clients; i++)
+            for (int i = 0; i < clients; i++)
             {
                 _httpClients[i] = new HttpClient();
             }
@@ -102,7 +113,11 @@ namespace ConsoleApplication
 
                 for (var i = 0; i < parallel; i++)
                 {
-                    var httpClient = _httpClients[i % clients];
+                    HttpClient httpClient = null;
+                    if (clientSelectionMode == ClientSelectionMode.Task)
+                    {
+                        httpClient =  _httpClients[i % clients];
+                    }
 
                     var thread = new Thread(() =>
                     {
@@ -128,9 +143,13 @@ namespace ConsoleApplication
             else if (threadingMode == ThreadingMode.Task)
             {
                 var tasks = new Task[parallel];
-                for (var i=0; i < parallel; i++)
+                for (var i = 0; i < parallel; i++)
                 {
-                    var httpClient = _httpClients[i % clients];
+                    HttpClient httpClient = null;
+                    if (clientSelectionMode == ClientSelectionMode.Task)
+                    {
+                        httpClient = _httpClients[i % clients];
+                    }
                     var task = ExecuteRequestsAsync(httpClient, uri, method, expectContinue, maxRequests);
                     tasks[i] = task;
                 }
@@ -143,8 +162,18 @@ namespace ConsoleApplication
             }
         }
 
+        private static HttpClient NextHttpClient()
+        {
+            return _httpClients[Interlocked.Increment(ref _httpClientCounter) % _httpClients.Length];
+        }
+
         private static Task<HttpResponseMessage> ExecuteRequestAsync(HttpClient httpClient, Uri uri, HttpMethod method, bool? expectContinue)
         {
+            if (httpClient == null)
+            {
+                httpClient = NextHttpClient();
+            }
+
             if (method == HttpMethod.Get)
             {
                 return httpClient.GetAsync(uri);
@@ -214,6 +243,6 @@ namespace ConsoleApplication
                 $"\tAvg RPS\t{Math.Round(totalRequests / totalElapsed.TotalSeconds)}" +
                 $"\tAvg Lat\t{Math.Round(totalMs / totalRequests, 2)}ms"
             );
-        }        
+        }
     }
 }
