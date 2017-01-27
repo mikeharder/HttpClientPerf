@@ -12,6 +12,7 @@ namespace ConsoleApplication
         private static HttpClient[] _httpClients;
         private static long _httpClientCounter = 0;
         private static int[] _queuedRequests;
+        private static int _maxQueue;
 
         private const string _payload =
             @"{ ""data"": ""{'job_id':'c4bb6d130003','container_id':'ab7b85dcac72','status':'Success: process exited with code 0.'}"" }";
@@ -49,6 +50,9 @@ namespace ConsoleApplication
             [Option('s', "clientSelectionMode", Default = ClientSelectionMode.TaskRoundRobin)]
             public ClientSelectionMode ClientSelectionMode { get; set; }
 
+            [Option('o', "clientSelectionTolerance", Default = 0)]
+            public int ClientSelectionTolerance { get; set; }
+
             [Option('v', "verbose", Default = false)]
             public bool Verbose { get; set; }
         }
@@ -72,7 +76,8 @@ namespace ConsoleApplication
             RequestRoundRobin,
             RequestRandom,
             RequestShortestQueue,
-            RequestRandomNotLongestQueue
+            RequestRandomNotLongestQueue,
+            RequestRandomTolerance
         }
 
         public static int Main(string[] args)
@@ -115,6 +120,8 @@ namespace ConsoleApplication
             ClientSelectionMode clientSelectionMode, bool? expectContinue, long maxRequests)
         {
             _queuedRequests = new int[clients];
+            _maxQueue = (parallel / clients) + _options.ClientSelectionTolerance;
+
             _httpClients = new HttpClient[clients];
             for (int i = 0; i < clients; i++)
             {
@@ -251,6 +258,17 @@ namespace ConsoleApplication
                     random = ConcurrentRandom.Next() % _httpClients.Length;
                 }
                 while (random == longestQueue);
+
+                clientId = random;
+            }
+            else if (clientSelectionMode == ClientSelectionMode.RequestRandomTolerance)
+            {
+                int random;
+                do
+                {
+                    random = ConcurrentRandom.Next() % _httpClients.Length;
+                }
+                while (_queuedRequests[random] >= _maxQueue);
 
                 clientId = random;
             }
