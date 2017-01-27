@@ -203,7 +203,7 @@ namespace ConsoleApplication
 
             if (_options.Verbose)
             {
-                Console.WriteLine($"BeforeSendAsync: RequestId:{requestId}, ClientId:{clientId}, ThreadId:{Thread.CurrentThread.ManagedThreadId}");
+                Console.Error.WriteLine($"BeforeSendAsync: RequestId:{requestId}, ClientId:{clientId}, ThreadId:{Thread.CurrentThread.ManagedThreadId}");
             }
 
             if (method == HttpMethod.Get)
@@ -227,7 +227,7 @@ namespace ConsoleApplication
 
             if (_options.Verbose)
             {
-                Console.WriteLine($"AfterSendAsync: RequestId:{requestId}, ClientId:{clientId}, ThreadId:{Thread.CurrentThread.ManagedThreadId}");
+                Console.Error.WriteLine($"AfterSendAsync: RequestId:{requestId}, ClientId:{clientId}, ThreadId:{Thread.CurrentThread.ManagedThreadId}");
             }
 
             return response;
