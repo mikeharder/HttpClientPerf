@@ -248,7 +248,7 @@ namespace ConsoleApplication
                 int random;
                 do
                 {
-                    random = ConcurrentRandom.Next();
+                    random = ConcurrentRandom.Next() ConcurrentRandom.Next() % _httpClients.Length;
                 }
                 while (random == longestQueue);
 
