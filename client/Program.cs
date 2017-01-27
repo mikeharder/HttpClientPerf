@@ -11,6 +11,7 @@ namespace ConsoleApplication
     {
         private static HttpClient[] _httpClients;
         private static long _httpClientCounter = 0;
+        private static int[] _outstandingRequests;
 
         private const string _payload =
             @"{ ""data"": ""{'job_id':'c4bb6d130003','container_id':'ab7b85dcac72','status':'Success: process exited with code 0.'}"" }";
@@ -111,6 +112,7 @@ namespace ConsoleApplication
         private static void RunTest(Uri uri, HttpMethod method, int parallel, ThreadingMode threadingMode, int clients,
             ClientSelectionMode clientSelectionMode, bool? expectContinue, long maxRequests)
         {
+            _outstandingRequests = new int[clients];
             _httpClients = new HttpClient[clients];
             for (int i = 0; i < clients; i++)
             {
@@ -198,9 +200,12 @@ namespace ConsoleApplication
                 clientId = ConcurrentRandom.Next() % _httpClients.Length;
             }
 
-            var managedThreadIdBefore = Thread.CurrentThread.ManagedThreadId;
+            var managedThreadIdBefore = _options.Verbose ? Thread.CurrentThread.ManagedThreadId : -1;
+
             var httpClient = _httpClients[clientId];
             HttpResponseMessage response;
+
+            Interlocked.Increment(ref _outstandingRequests[clientId]);
 
             if (method == HttpMethod.Get)
             {
@@ -220,6 +225,8 @@ namespace ConsoleApplication
             {
                 throw new InvalidOperationException();
             }
+
+            Interlocked.Decrement(ref _outstandingRequests[clientId]);
 
             if (_options.Verbose)
             {
@@ -284,7 +291,8 @@ namespace ConsoleApplication
                 $"\tCur RPS\t{Math.Round(currentRequests / currentElapsed.TotalSeconds)}" +
                 $"\tCur Lat\t{Math.Round(currentMs / currentRequests, 2)}ms" +
                 $"\tAvg RPS\t{Math.Round(totalRequests / totalElapsed.TotalSeconds)}" +
-                $"\tAvg Lat\t{Math.Round(totalMs / totalRequests, 2)}ms"
+                $"\tAvg Lat\t{Math.Round(totalMs / totalRequests, 2)}ms" +
+                $"\tReq\t{String.Join(" ", _outstandingRequests)}"
             );
         }
 
