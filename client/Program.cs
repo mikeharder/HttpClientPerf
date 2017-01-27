@@ -198,13 +198,9 @@ namespace ConsoleApplication
                 clientId = ConcurrentRandom.Next() % _httpClients.Length;
             }
 
+            var managedThreadIdBefore = Thread.CurrentThread.ManagedThreadId;
             var httpClient = _httpClients[clientId];
             HttpResponseMessage response;
-
-            if (_options.Verbose)
-            {
-                Console.Error.WriteLine($"BeforeSendAsync: RequestId:{requestId}, ClientId:{clientId}, ThreadId:{Thread.CurrentThread.ManagedThreadId}");
-            }
 
             if (method == HttpMethod.Get)
             {
@@ -227,7 +223,8 @@ namespace ConsoleApplication
 
             if (_options.Verbose)
             {
-                Console.Error.WriteLine($"AfterSendAsync: RequestId:{requestId}, ClientId:{clientId}, ThreadId:{Thread.CurrentThread.ManagedThreadId}");
+                Console.Error.WriteLine($"RequestId:{requestId}, ClientId:{clientId}, " +
+                    $"ThreadIdBefore: {managedThreadIdBefore} ThreadIdAfter:{Thread.CurrentThread.ManagedThreadId}");
             }
 
             return response;
