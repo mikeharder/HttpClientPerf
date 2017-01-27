@@ -20,6 +20,8 @@ namespace ConsoleApplication
         private static long _requests;
         private static long _ticks;
 
+        private static Options _options;
+
         private class Options
         {
             [Option('u', "uri", Required = true)]
@@ -45,6 +47,9 @@ namespace ConsoleApplication
 
             [Option('s', "clientSelectionMode", Default = ClientSelectionMode.TaskRoundRobin)]
             public ClientSelectionMode ClientSelectionMode { get; set; }
+
+            [Option('v', "verbose", Default = false)]
+            public bool Verbose { get; set; }
         }
 
         private enum HttpMethod
@@ -83,6 +88,8 @@ namespace ConsoleApplication
 
         private static int Run(Options options)
         {
+            _options = options;
+
             Console.WriteLine(
                 $"{options.Method.ToString().ToUpperInvariant()} {options.Uri} with " +
                 $"{options.Parallel} {options.ThreadingMode.ToString().ToLowerInvariant()}(s), " +
@@ -116,22 +123,23 @@ namespace ConsoleApplication
 
                 for (var i = 0; i < parallel; i++)
                 {
-                    HttpClient httpClient = null;
+                    int clientId = -1;
                     if (clientSelectionMode == ClientSelectionMode.TaskRoundRobin)
                     {
-                        httpClient = _httpClients[i % _httpClients.Length];
+                        clientId = i % _httpClients.Length;
                     }
                     else if (clientSelectionMode == ClientSelectionMode.TaskRandom)
                     {
-                        httpClient = _httpClients[ConcurrentRandom.Next() % _httpClients.Length];
+                        clientId = ConcurrentRandom.Next() % _httpClients.Length;
                     }
 
                     var thread = new Thread(() =>
                     {
-                        while (Interlocked.Increment(ref _requests) <= maxRequests)
+                        long requestId;
+                        while ((requestId = Interlocked.Increment(ref _requests)) <= maxRequests)
                         {
                             var start = _stopwatch.ElapsedTicks;
-                            using (var response = ExecuteRequestAsync(httpClient, uri, method, expectContinue, clientSelectionMode).Result) { }
+                            using (var response = ExecuteRequestAsync(requestId, clientId, uri, method, expectContinue, clientSelectionMode).Result) { }
                             var end = _stopwatch.ElapsedTicks;
 
                             Interlocked.Add(ref _ticks, end - start);
@@ -152,16 +160,16 @@ namespace ConsoleApplication
                 var tasks = new Task[parallel];
                 for (var i = 0; i < parallel; i++)
                 {
-                    HttpClient httpClient = null;
+                    int clientId = -1;
                     if (clientSelectionMode == ClientSelectionMode.TaskRoundRobin)
                     {
-                        httpClient = _httpClients[i % _httpClients.Length];
+                        clientId = i % _httpClients.Length;
                     }
                     else if (clientSelectionMode == ClientSelectionMode.TaskRandom)
                     {
-                        httpClient = _httpClients[ConcurrentRandom.Next() % _httpClients.Length];
+                        clientId = ConcurrentRandom.Next() % _httpClients.Length;
                     }
-                    var task = ExecuteRequestsAsync(httpClient, uri, method, expectContinue, maxRequests, clientSelectionMode);
+                    var task = ExecuteRequestsAsync(clientId, uri, method, expectContinue, maxRequests, clientSelectionMode);
                     tasks[i] = task;
                 }
 
@@ -173,26 +181,34 @@ namespace ConsoleApplication
             }
         }
 
-        private static HttpClient NextHttpClient()
+        private static int NextClientId()
         {
-            return _httpClients[Interlocked.Increment(ref _httpClientCounter) % _httpClients.Length];
+            return (int)(Interlocked.Increment(ref _httpClientCounter) % _httpClients.Length);
         }
 
-        private static async Task<HttpResponseMessage> ExecuteRequestAsync(HttpClient httpClient, Uri uri, HttpMethod method, bool? expectContinue,
+        private static async Task<HttpResponseMessage> ExecuteRequestAsync(long requestId, int clientId, Uri uri, HttpMethod method, bool? expectContinue,
             ClientSelectionMode clientSelectionMode)
         {
             if (clientSelectionMode == ClientSelectionMode.RequestRoundRobin)
             {
-                httpClient = NextHttpClient();
+                clientId = NextClientId();
             }
             else if (clientSelectionMode == ClientSelectionMode.RequestRandom)
             {
-                httpClient = _httpClients[ConcurrentRandom.Next() % _httpClients.Length];
+                clientId = ConcurrentRandom.Next() % _httpClients.Length;
+            }
+
+            var httpClient = _httpClients[clientId];
+            HttpResponseMessage response;
+
+            if (_options.Verbose)
+            {
+                Console.WriteLine($"BeforeSendAsync: RequestId:{requestId}, ClientId:{clientId}, ThreadId:{Thread.CurrentThread.ManagedThreadId}");
             }
 
             if (method == HttpMethod.Get)
             {
-                return await httpClient.GetAsync(uri);
+                response = await httpClient.GetAsync(uri);
             }
             else if (method == HttpMethod.Post)
             {
@@ -201,22 +217,30 @@ namespace ConsoleApplication
                 {
                     m.Content = content;
                     m.Headers.ExpectContinue = expectContinue;
-                    return await httpClient.SendAsync(m);
+                    response = await httpClient.SendAsync(m);
                 }
             }
             else
             {
                 throw new InvalidOperationException();
             }
+
+            if (_options.Verbose)
+            {
+                Console.WriteLine($"AfterSendAsync: RequestId:{requestId}, ClientId:{clientId}, ThreadId:{Thread.CurrentThread.ManagedThreadId}");
+            }
+
+            return response;
         }
 
-        private static async Task ExecuteRequestsAsync(HttpClient httpClient, Uri uri, HttpMethod method, bool? expectContinue, long maxRequests,
+        private static async Task ExecuteRequestsAsync(int clientId, Uri uri, HttpMethod method, bool? expectContinue, long maxRequests,
             ClientSelectionMode clientSelectionMode)
         {
-            while (Interlocked.Increment(ref _requests) <= maxRequests)
+            long requestId;
+            while ((requestId = Interlocked.Increment(ref _requests)) <= maxRequests)
             {
                 var start = _stopwatch.ElapsedTicks;
-                using (var response = await ExecuteRequestAsync(httpClient, uri, method, expectContinue, clientSelectionMode))
+                using (var response = await ExecuteRequestAsync(requestId, clientId, uri, method, expectContinue, clientSelectionMode))
                 {
                 }
                 var end = _stopwatch.ElapsedTicks;
