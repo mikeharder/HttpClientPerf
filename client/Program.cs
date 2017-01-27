@@ -11,7 +11,7 @@ namespace ConsoleApplication
     {
         private static HttpClient[] _httpClients;
         private static long _httpClientCounter = 0;
-        private static int[] _outstandingRequests;
+        private static int[] _queuedRequests;
 
         private const string _payload =
             @"{ ""data"": ""{'job_id':'c4bb6d130003','container_id':'ab7b85dcac72','status':'Success: process exited with code 0.'}"" }";
@@ -70,7 +70,8 @@ namespace ConsoleApplication
             TaskRoundRobin,
             TaskRandom,
             RequestRoundRobin,
-            RequestRandom
+            RequestRandom,
+            RequestShortestQueue
         }
 
         public static int Main(string[] args)
@@ -112,7 +113,7 @@ namespace ConsoleApplication
         private static void RunTest(Uri uri, HttpMethod method, int parallel, ThreadingMode threadingMode, int clients,
             ClientSelectionMode clientSelectionMode, bool? expectContinue, long maxRequests)
         {
-            _outstandingRequests = new int[clients];
+            _queuedRequests = new int[clients];
             _httpClients = new HttpClient[clients];
             for (int i = 0; i < clients; i++)
             {
@@ -188,6 +189,24 @@ namespace ConsoleApplication
             return (int)(Interlocked.Increment(ref _httpClientCounter) % _httpClients.Length);
         }
 
+        private static int ShortestQueue()
+        {
+            var shortestQueue = 0;
+            var shortestQueueLength = _queuedRequests[0];
+
+            for (var i = 1; i < _httpClients.Length; i++)
+            {
+                var queueLength = _queuedRequests[i];
+                if (queueLength < shortestQueueLength)
+                {
+                    shortestQueue = i;
+                    shortestQueueLength = queueLength;
+                }
+            }
+
+            return shortestQueue;
+        }
+
         private static async Task<HttpResponseMessage> ExecuteRequestAsync(long requestId, int clientId, Uri uri, HttpMethod method, bool? expectContinue,
             ClientSelectionMode clientSelectionMode)
         {
@@ -199,13 +218,17 @@ namespace ConsoleApplication
             {
                 clientId = ConcurrentRandom.Next() % _httpClients.Length;
             }
+            else if (clientSelectionMode == ClientSelectionMode.RequestShortestQueue)
+            {
+                clientId = ShortestQueue();
+            }
 
             var managedThreadIdBefore = _options.Verbose ? Thread.CurrentThread.ManagedThreadId : -1;
 
             var httpClient = _httpClients[clientId];
             HttpResponseMessage response;
 
-            Interlocked.Increment(ref _outstandingRequests[clientId]);
+            Interlocked.Increment(ref _queuedRequests[clientId]);
 
             if (method == HttpMethod.Get)
             {
@@ -226,7 +249,7 @@ namespace ConsoleApplication
                 throw new InvalidOperationException();
             }
 
-            Interlocked.Decrement(ref _outstandingRequests[clientId]);
+            Interlocked.Decrement(ref _queuedRequests[clientId]);
 
             if (_options.Verbose)
             {
@@ -292,7 +315,7 @@ namespace ConsoleApplication
                 $"\tCur Lat\t{Math.Round(currentMs / currentRequests, 2)}ms" +
                 $"\tAvg RPS\t{Math.Round(totalRequests / totalElapsed.TotalSeconds)}" +
                 $"\tAvg Lat\t{Math.Round(totalMs / totalRequests, 2)}ms" +
-                $"\tReq\t{String.Join(" ", _outstandingRequests)}"
+                $"\tReq\t{String.Join(" ", _queuedRequests)}"
             );
         }
 
