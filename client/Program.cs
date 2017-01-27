@@ -71,7 +71,8 @@ namespace ConsoleApplication
             TaskRandom,
             RequestRoundRobin,
             RequestRandom,
-            RequestShortestQueue
+            RequestShortestQueue,
+            RequestRandomNotLongestQueue
         }
 
         public static int Main(string[] args)
@@ -207,6 +208,24 @@ namespace ConsoleApplication
             return shortestQueue;
         }
 
+        private static int LongestQueue()
+        {
+            var longestQueue = 0;
+            var longestQueueLength = _queuedRequests[0];
+
+            for (var i = 1; i < _httpClients.Length; i++)
+            {
+                var queueLength = _queuedRequests[i];
+                if (queueLength > longestQueueLength)
+                {
+                    longestQueue = i;
+                    longestQueueLength = queueLength;
+                }
+            }
+
+            return longestQueue;
+        }
+
         private static async Task<HttpResponseMessage> ExecuteRequestAsync(long requestId, int clientId, Uri uri, HttpMethod method, bool? expectContinue,
             ClientSelectionMode clientSelectionMode)
         {
@@ -221,6 +240,19 @@ namespace ConsoleApplication
             else if (clientSelectionMode == ClientSelectionMode.RequestShortestQueue)
             {
                 clientId = ShortestQueue();
+            }
+            else if (clientSelectionMode == ClientSelectionMode.RequestRandomNotLongestQueue)
+            {
+                var longestQueue = LongestQueue();
+
+                int random;
+                do
+                {
+                    random = ConcurrentRandom.Next();
+                }
+                while (random == longestQueue);
+
+                clientId = random;
             }
 
             var managedThreadIdBefore = _options.Verbose ? Thread.CurrentThread.ManagedThreadId : -1;
@@ -300,7 +332,8 @@ namespace ConsoleApplication
                 lastElapsed = elapsed;
 
                 WriteResult(requests, ticks, elapsed, currentRequests, currentTicks, currentElapsed);
-            } while (Interlocked.Read(ref _requests) < maxRequests);
+            }
+            while (Interlocked.Read(ref _requests) < maxRequests);
         }
 
         private static void WriteResult(long totalRequests, long totalTicks, TimeSpan totalElapsed,
