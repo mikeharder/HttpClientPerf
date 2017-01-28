@@ -12,6 +12,7 @@ namespace ConsoleApplication
         private static HttpClient[] _httpClients;
         private static long _httpClientCounter = 0;
         private static int[] _queuedRequests;
+        private static int _minQueue;
         private static int _maxQueue;
 
         private const string _payload =
@@ -120,6 +121,7 @@ namespace ConsoleApplication
             ClientSelectionMode clientSelectionMode, bool? expectContinue, long maxRequests)
         {
             _queuedRequests = new int[clients];
+            _minQueue = (parallel / clients) - _options.ClientSelectionTolerance;
             _maxQueue = (parallel / clients) + _options.ClientSelectionTolerance;
 
             _httpClients = new HttpClient[clients];
@@ -263,14 +265,24 @@ namespace ConsoleApplication
             }
             else if (clientSelectionMode == ClientSelectionMode.RequestRandomTolerance)
             {
-                int random;
-                do
-                {
-                    random = ConcurrentRandom.Next() % _httpClients.Length;
-                }
-                while (_queuedRequests[random] >= _maxQueue);
+                // If any queue is below the minimum, select it.  Else, select a random queue below the maximum.
 
-                clientId = random;
+                var shortestQueue = ShortestQueue();                
+                if (_queuedRequests[shortestQueue] < _minQueue)
+                {
+                    clientId = shortestQueue;
+                }
+                else
+                {
+                    int random;
+                    do
+                    {
+                        random = ConcurrentRandom.Next() % _httpClients.Length;
+                    }
+                    while (_queuedRequests[random] >= _maxQueue);
+
+                    clientId = random;
+                }
             }
 
             var managedThreadIdBefore = _options.Verbose ? Thread.CurrentThread.ManagedThreadId : -1;
