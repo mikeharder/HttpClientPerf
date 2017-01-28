@@ -49,10 +49,10 @@ namespace ConsoleApplication
             [Option('s', "clientSelectionMode", Default = ClientSelectionMode.TaskRoundRobin)]
             public ClientSelectionMode ClientSelectionMode { get; set; }
 
-            [Option("minQueue")]
+            [Option("minQueue", Default = 0)]
             public int MinQueue { get; set; }
 
-            [Option("maxQueue")]
+            [Option("maxQueue", Default = int.MaxValue)]
             public int MaxQueue { get; set; }
 
             [Option('v', "verbose", Default = false)]
@@ -105,6 +105,7 @@ namespace ConsoleApplication
                 $"{options.Parallel} {options.ThreadingMode.ToString().ToLowerInvariant()}(s), " +
                 $"{options.Clients} client(s), " +
                 $"ClientSelectionMode={options.ClientSelectionMode.ToString()}, " +
+                $"MinQueue={options.MinQueue}, MaxQueue={options.MaxQueue}" +
                 $"and ExpectContinue={options.ExpectContinue?.ToString() ?? "null"}" +
                 "...");
 
