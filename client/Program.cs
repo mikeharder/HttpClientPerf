@@ -105,7 +105,7 @@ namespace ConsoleApplication
                 $"{options.Parallel} {options.ThreadingMode.ToString().ToLowerInvariant()}(s), " +
                 $"{options.Clients} client(s), " +
                 $"ClientSelectionMode={options.ClientSelectionMode.ToString()}, " +
-                $"MinQueue={options.MinQueue}, MaxQueue={options.MaxQueue}" +
+                $"MinQueue={options.MinQueue}, MaxQueue={options.MaxQueue}, " +
                 $"and ExpectContinue={options.ExpectContinue?.ToString() ?? "null"}" +
                 "...");
 
