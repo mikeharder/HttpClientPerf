@@ -262,7 +262,7 @@ namespace ConsoleApplication
             }
             else if (_options.ClientSelectionMode == ClientSelectionMode.RequestRandomTolerance)
             {
-                // If any queue is below the minimum, select it.  Else, select a random queue below the maximum.
+                // If the shortest queue is below the minimum, select it.  Else, select a random queue below the maximum.
 
                 var shortestQueue = ShortestQueue();                
                 if (_queuedRequests[shortestQueue] < _options.MinQueue)
