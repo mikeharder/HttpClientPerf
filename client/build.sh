@@ -1,2 +1,2 @@
-~/.dotnet/dotnet restore project.json
-~/.dotnet/dotnet build -c Release
+dotnet restore
+dotnet build -c Release

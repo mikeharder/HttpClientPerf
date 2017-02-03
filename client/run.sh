@@ -1,1 +1,1 @@
-~/.dotnet/dotnet bin/Release/netcoreapp1.1/client.dll $@
+dotnet bin/Release/netcoreapp2.0/client.dll $@
