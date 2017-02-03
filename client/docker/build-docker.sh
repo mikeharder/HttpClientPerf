@@ -1,1 +1,1 @@
-docker build -t httpclientperf-client .
+docker build -t httpclientperf-client -f docker/Dockerfile .
