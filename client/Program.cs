@@ -125,7 +125,9 @@ namespace ConsoleApplication
             _httpClients = new HttpClient[_options.Clients];
             for (int i = 0; i < _options.Clients; i++)
             {
-                _httpClients[i] = new HttpClient();
+                _httpClients[i] = new HttpClient(new HttpClientHandler() {
+                    ServerCertificateCustomValidationCallback = (a, b, c, d) => true
+                });
             }
 
             if (_options.ThreadingMode == ThreadingMode.Thread)
