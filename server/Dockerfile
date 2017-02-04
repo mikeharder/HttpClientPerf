@@ -1,6 +1,7 @@
-FROM microsoft/dotnet
+FROM microsoft/dotnet:1.1.0-sdk-projectjson
 
 EXPOSE 8080
+EXPOSE 8081
 
 WORKDIR /app
 
