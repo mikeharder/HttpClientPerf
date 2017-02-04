@@ -9,8 +9,11 @@ namespace ConsoleApplication
         public static void Main(string[] args)
         {
             var hostBuilder = new WebHostBuilder()
-                .UseUrls("http://+:8080")
-                .UseKestrel()
+                .UseUrls("http://+:8080", "https://+:8081")
+                .UseKestrel(options =>
+                {
+                    options.UseHttps("testCert.pfx", "testPassword");
+                })
                 .UseStartup<Startup>();
             
             var host = hostBuilder.Build();

@@ -1,0 +1,7 @@
+# common
+.gitignore
+bin
+obj
+
+# project
+*.sh
