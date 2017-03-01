@@ -1,1 +1,1 @@
-dotnet bin/Release/netcoreapp1.1/client.dll $@
+docker run -it --rm httpclientperf-client-1.1.0
