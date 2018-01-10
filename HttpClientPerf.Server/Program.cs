@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore;
+﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
 using System.Net;
 
 namespace HttpClientPerf.Server
@@ -9,12 +9,7 @@ namespace HttpClientPerf.Server
     {
         public static void Main(string[] args)
         {
-            BuildWebHost(args).Run();
-        }
-
-        public static IWebHost BuildWebHost(string[] args) =>
-            WebHost.CreateDefaultBuilder(args)
-                .UseStartup<Startup>()
+            new WebHostBuilder()
                 .UseKestrel(options =>
                 {
                     options.Listen(IPAddress.Any, 5000);
@@ -23,11 +18,12 @@ namespace HttpClientPerf.Server
                         listenOptions.UseHttps("testCert.pfx", "testPassword");
                     });
                 })
-                .ConfigureLogging((context, logging) =>
+                .Configure(app => app.Run(async (context) =>
                 {
-                    // Disable logging
-                    logging.ClearProviders();
-                })
-                .Build();
+                    await context.Response.WriteAsync("Hello World!");
+                }))
+                .Build()
+                .Run();
+        }
     }
 }
