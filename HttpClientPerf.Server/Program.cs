@@ -18,9 +18,16 @@ namespace HttpClientPerf.Server
                         listenOptions.UseHttps("testCert.pfx", "testPassword");
                     });
                 })
-                .Configure(app => app.Run(async (context) =>
+                .Configure(app => app.Run(context =>
                 {
-                    await context.Response.WriteAsync("Hello World!");
+                    if (context.Request.ContentLength > 0)
+                    {
+                        return context.Request.Body.CopyToAsync(context.Response.Body);
+                    }
+                    else
+                    {
+                        return context.Response.WriteAsync("Hello from ASP.NET Core!");
+                    }
                 }))
                 .Build()
                 .Run();
