@@ -2,6 +2,7 @@
 using System;
 using System.Diagnostics;
 using System.Net.Http;
+using System.Runtime;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -100,6 +101,11 @@ namespace HttpClientPerf.Client
         {
             _options = options;
 
+            if (!GCSettings.IsServerGC)
+            {
+                throw new InvalidOperationException("Server GC must be enabled");
+            }
+
             Console.WriteLine(
                 $"{options.Method.ToString().ToUpperInvariant()} {options.Uri} with " +
                 $"{options.Parallel} {options.ThreadingMode.ToString().ToLowerInvariant()}(s), " +
@@ -108,6 +114,7 @@ namespace HttpClientPerf.Client
                 $"MinQueue={options.MinQueue}, MaxQueue={options.MaxQueue}, " +
                 $"and ExpectContinue={options.ExpectContinue?.ToString() ?? "null"}" +
                 "...");
+            Console.WriteLine();
 
             var writeResultsTask = WriteResults();
 
