@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Logging;
 using System.Net;
 
 namespace HttpClientPerf.Server
@@ -21,6 +22,11 @@ namespace HttpClientPerf.Server
                     {
                         listenOptions.UseHttps("testCert.pfx", "testPassword");
                     });
+                })
+                .ConfigureLogging((context, logging) =>
+                {
+                    // Disable logging
+                    logging.ClearProviders();
                 })
                 .Build();
     }
