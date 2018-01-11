@@ -12,8 +12,8 @@ namespace HttpClientPerf.Server
             new WebHostBuilder()
                 .UseKestrel(options =>
                 {
-                    options.Listen(IPAddress.Any, 5000);
-                    options.Listen(IPAddress.Any, 5001, listenOptions =>
+                    options.Listen(IPAddress.Any, 8080);
+                    options.Listen(IPAddress.Any, 8081, listenOptions =>
                     {
                         listenOptions.UseHttps("testCert.pfx", "testPassword");
                     });
