@@ -1,11 +1,12 @@
-using CommandLine;
+﻿using CommandLine;
 using System;
 using System.Diagnostics;
 using System.Net.Http;
+using System.Runtime;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ConsoleApplication
+namespace HttpClientPerf.Client
 {
     public class Program
     {
@@ -100,6 +101,11 @@ namespace ConsoleApplication
         {
             _options = options;
 
+            if (!GCSettings.IsServerGC)
+            {
+                throw new InvalidOperationException("Server GC must be enabled");
+            }
+
             Console.WriteLine(
                 $"{options.Method.ToString().ToUpperInvariant()} {options.Uri} with " +
                 $"{options.Parallel} {options.ThreadingMode.ToString().ToLowerInvariant()}(s), " +
@@ -108,6 +114,7 @@ namespace ConsoleApplication
                 $"MinQueue={options.MinQueue}, MaxQueue={options.MaxQueue}, " +
                 $"and ExpectContinue={options.ExpectContinue?.ToString() ?? "null"}" +
                 "...");
+            Console.WriteLine();
 
             var writeResultsTask = WriteResults();
 
@@ -125,7 +132,8 @@ namespace ConsoleApplication
             _httpClients = new HttpClient[_options.Clients];
             for (int i = 0; i < _options.Clients; i++)
             {
-                _httpClients[i] = new HttpClient(new HttpClientHandler() {
+                _httpClients[i] = new HttpClient(new HttpClientHandler()
+                {
                     ServerCertificateCustomValidationCallback = (a, b, c, d) => true
                 });
             }
@@ -266,7 +274,7 @@ namespace ConsoleApplication
             {
                 // If the shortest queue is below the minimum, select it.  Else, select a random queue below the maximum.
 
-                var shortestQueue = ShortestQueue();                
+                var shortestQueue = ShortestQueue();
                 if (_queuedRequests[shortestQueue] < _options.MinQueue)
                 {
                     clientId = shortestQueue;
