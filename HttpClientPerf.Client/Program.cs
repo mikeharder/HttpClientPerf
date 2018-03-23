@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Runtime;
 using System.Threading;
 using System.Threading.Tasks;
@@ -141,6 +142,10 @@ namespace HttpClientPerf.Client
                     ServerCertificateCustomValidationCallback = (a, b, c, d) => true
                 });
             }
+
+            var handler = typeof(HttpMessageInvoker).GetField("_handler", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(_httpClients[0]);
+            var socketsHttpHandler = typeof(HttpClientHandler).GetField("_socketsHttpHandler", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(handler);
+            Console.WriteLine($"_socketsHttpHandler: {socketsHttpHandler ?? "null"}" + Environment.NewLine);
 
             if (_options.ThreadingMode == ThreadingMode.Thread)
             {
@@ -424,6 +429,10 @@ namespace HttpClientPerf.Client
 
             var microsoftNetCoreAppVersion = Path.GetDirectoryName(typeof(string).Assembly.Location).Split(Path.DirectorySeparatorChar).Last();
             Console.WriteLine($"Microsoft.NETCore.App: {microsoftNetCoreAppVersion}");
+
+            Console.WriteLine($"COMPlus_UseManagedHttpClientHandler: {Environment.GetEnvironmentVariable("COMPlus_UseManagedHttpClientHandler")}");
+            Console.WriteLine($"DOTNET_SYSTEM_NET_HTTP_USEMANAGEDHTTPCLIENTHANDLER: {Environment.GetEnvironmentVariable("DOTNET_SYSTEM_NET_HTTP_USEMANAGEDHTTPCLIENTHANDLER")}");
+            Console.WriteLine($"DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER: {Environment.GetEnvironmentVariable("DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER")}");
 
             Console.WriteLine();
         }
