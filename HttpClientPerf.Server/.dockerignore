@@ -1,3 +1,14 @@
+# Docker
+docker
+.dockerignore
+
+# Build artifacts
 bin
 obj
+
+# Unused files
 Properties
+build.*
+run.*
+stop.*
+*.csproj.user
