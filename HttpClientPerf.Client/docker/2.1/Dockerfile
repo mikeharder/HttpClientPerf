@@ -17,5 +17,7 @@ COPY --from=build /app/out ./
 
 # ensure managed handler is used regardless of default in runtime
 ENV COMPlus_UseManagedHttpClientHandler true
+ENV DOTNET_SYSTEM_NET_HTTP_USEMANAGEDHTTPCLIENTHANDLER true
+ENV DOTNET_SYSTEM_NET_HTTP_USESOCKETSHTTPHANDLER true
 
 ENTRYPOINT ["dotnet", "HttpClientPerf.Client.dll"]
