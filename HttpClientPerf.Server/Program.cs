@@ -1,6 +1,11 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Net;
 
 namespace HttpClientPerf.Server
@@ -9,6 +14,8 @@ namespace HttpClientPerf.Server
     {
         public static void Main(string[] args)
         {
+            PrintVersions();
+
             new WebHostBuilder()
                 .UseKestrel(options =>
                 {
@@ -31,6 +38,26 @@ namespace HttpClientPerf.Server
                 }))
                 .Build()
                 .Run();
+        }
+
+        private static void PrintVersions()
+        {
+#if NETCOREAPP2_1
+            Console.WriteLine("TargetFramework: netcoreapp2.1");
+#elif NETCOREAPP2_0
+            Console.WriteLine("TargetFramework: netcoreapp2.0");
+#else
+#error Invalid TFM
+#endif
+
+            var microsoftNetCoreAppVersion = Path.GetDirectoryName(typeof(string).Assembly.Location).Split(Path.DirectorySeparatorChar).Last();
+            Console.WriteLine($"Microsoft.NETCore.App: {microsoftNetCoreAppVersion}");
+
+            var kestrelVersion = FileVersionInfo.GetVersionInfo(
+                typeof(Microsoft.AspNetCore.Hosting.WebHostBuilderKestrelExtensions).Assembly.Location).ProductVersion;
+            Console.WriteLine($"Kestrel: {kestrelVersion}");
+
+            Console.WriteLine();
         }
     }
 }

@@ -2,6 +2,7 @@ FROM microsoft/dotnet-nightly:2.1-sdk AS build
 WORKDIR /app
 
 # copy csproj and restore as distinct layers
+COPY NuGet.config ./
 COPY *.csproj ./
 RUN dotnet restore
 

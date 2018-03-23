@@ -1,6 +1,8 @@
 ﻿using CommandLine;
 using System;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Runtime;
 using System.Threading;
@@ -85,6 +87,8 @@ namespace HttpClientPerf.Client
 
         public static int Main(string[] args)
         {
+            PrintVersions();
+
             var parser = new Parser(settings =>
             {
                 settings.CaseInsensitiveEnumValues = true;
@@ -406,6 +410,22 @@ namespace HttpClientPerf.Client
                 }
                 return inst.Next();
             }
+        }
+
+        private static void PrintVersions()
+        {
+#if NETCOREAPP2_1
+            Console.WriteLine("TargetFramework: netcoreapp2.1");
+#elif NETCOREAPP2_0
+            Console.WriteLine("TargetFramework: netcoreapp2.0");
+#else
+#error Invalid TFM
+#endif
+
+            var microsoftNetCoreAppVersion = Path.GetDirectoryName(typeof(string).Assembly.Location).Split(Path.DirectorySeparatorChar).Last();
+            Console.WriteLine($"Microsoft.NETCore.App: {microsoftNetCoreAppVersion}");
+
+            Console.WriteLine();
         }
     }
 }
