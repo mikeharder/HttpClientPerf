@@ -4,7 +4,9 @@ WORKDIR /app
 # copy csproj and restore as distinct layers
 COPY NuGet.config ./
 COPY *.csproj ./
-RUN dotnet restore
+
+# must disable parallel to avoid timeouts on raspberry pi
+RUN dotnet restore --disable-parallel
 
 # copy everything else and build
 COPY . ./
