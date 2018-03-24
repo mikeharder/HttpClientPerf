@@ -1,16 +1,19 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text;
 
 namespace HttpClientPerf.Server
 {
     public class Program
     {
+        private static readonly byte[] _helloWorldPayload = Encoding.UTF8.GetBytes("Hello, World!");
+        private static readonly int _helloWorldPayloadLength = _helloWorldPayload.Length;
+
         public static void Main(string[] args)
         {
             PrintVersions();
@@ -32,7 +35,11 @@ namespace HttpClientPerf.Server
                     }
                     else
                     {
-                        return context.Response.WriteAsync("Hello from ASP.NET Core!");
+                        var response = context.Response;
+                        response.StatusCode = 200;
+                        response.ContentType = "text/plain";
+                        response.ContentLength = _helloWorldPayloadLength;
+                        return response.Body.WriteAsync(_helloWorldPayload, 0, _helloWorldPayloadLength);
                     }
                 }))
                 .Build()
