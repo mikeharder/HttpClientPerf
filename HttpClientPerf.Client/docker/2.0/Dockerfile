@@ -10,7 +10,7 @@ RUN dotnet restore --disable-parallel
 
 # copy everything else and build
 COPY . ./
-RUN dotnet publish -f netcoreapp2.0 -c Release -o out
+RUN dotnet publish --no-restore -f netcoreapp2.0 -c Release -o out
 
 # build runtime image
 FROM microsoft/dotnet:2.0-runtime
